@@ -103,9 +103,14 @@ def country_code_of(company):
 
 @frappe.whitelist()
 def get_ui_labels(company: str):
-	"""Labels the forms need (authority short name, provider wording)."""
+	"""Labels the forms need (authority short name, provider wording), plus
+	whether e-invoicing is switched on for the company."""
 	try:
-		return get_profile(company).ui_labels()
+		labels = dict(get_profile(company).ui_labels())
+		labels["einvoice_enabled"] = bool(
+			frappe.db.get_value("Company", company, "custom_einvoice_enabled")
+		)
+		return labels
 	except Exception:
 		return {}
 

@@ -23,6 +23,13 @@ function einvoice_ui_labels(company) {
         .catch(() => ({}));
 }
 
+// The provider's Document ID. The field's default is the text "Not
+// Submitted", so that value means no e-invoice exists yet.
+function einvoice_has_document_id(doc) {
+    const id = (doc.custom_document_id || "").trim();
+    return Boolean(id) && id.toUpperCase() !== "NOT SUBMITTED";
+}
+
 // Status corner ribbon, drawn into the HTML field
 // custom_einvoice_status_notification. A CSS ribbon: identical size and
 // position for every status, right-aligned in its own column and clipped to
@@ -52,6 +59,15 @@ function einvoice_render_status_ribbon(frm) {
             ribbon = ["Not Reported", "#8A8F94"];
         } else if (einvoice === "SUCCESS") {
             ribbon = ["Sent to " + provider, "#2F6FD6"];
+        } else if (
+            frm.doctype === "Sales Invoice" &&
+            frm.doc.docstatus === 1 &&
+            labels.einvoice_enabled &&
+            !einvoice_has_document_id(frm.doc)
+        ) {
+            // Submitted, e-invoicing is on for the company, but no e-invoice
+            // exists yet (never sent, or the provider did not accept it).
+            ribbon = ["E-Invoice Pending", "#F29D1C"];
         }
 
         let html = " ";
