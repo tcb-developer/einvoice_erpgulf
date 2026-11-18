@@ -443,6 +443,7 @@ class MarminAdapter(BaseAdapter):
             "profile_execution_id": MARMIN_PROFILE_EXECUTION_ID_STANDARD,
             "document_number": doc.name,
             "issue_date": str(doc.posting_date),
+            "issue_time": _marmin_issue_time(doc),
             "invoice_type_code": _marmin_sales_invoice_type_code(doc),
             "due_date": str(doc.due_date) if doc.due_date else str(doc.posting_date),
             "document_currency_code": doc.currency,
