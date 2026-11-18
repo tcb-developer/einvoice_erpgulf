@@ -103,6 +103,10 @@ def _marmin_sales_payment_means(doc):
     return payment_means_list
 
 MARMIN_API_VERSION = "20260507"  # from the 2026-05-07 docs page
+# Header names from Marmin's change log (API version 2026-05-07). The old
+# names X-Marmin-Signature / X-Marmin-Version stop working on 31 Dec 2026.
+MARMIN_SIGNATURE_HEADER = "X-HMAC-Signature"
+MARMIN_VERSION_HEADER = "X-API-Version"
 MARMIN_PROFILE_EXECUTION_ID_STANDARD = "00000000"
 MARMIN_DEFAULT_PAYMENT_MEANS_CODE = "1"
 MARMIN_APPROVED_PAYMENT_MEANS_CODES = {"1", "10", "20", "21", "30", "49", "54", "55", "68"}
@@ -128,7 +132,7 @@ class MarminAdapter(BaseAdapter):
     def get_auth_headers(self, extra=None):
         headers = dict(extra or {})
         headers["Authorization"] = f"Bearer {self.get_valid_token()}"
-        headers["X-MARMIN-VERSION"] = MARMIN_API_VERSION
+        headers[MARMIN_VERSION_HEADER] = MARMIN_API_VERSION
         return headers
 
     def _fetch_token(self):
@@ -144,7 +148,7 @@ class MarminAdapter(BaseAdapter):
 
         # HMAC-SHA256(key=client_secret, message=client_id), base64-encoded -
         # exactly the signature Marmin's token endpoint expects in
-        # x-marmin-signature.
+        # X-HMAC-Signature.
         signature = base64.b64encode(
             hmac.new(
                 client_secret.encode("utf-8"),
@@ -155,8 +159,8 @@ class MarminAdapter(BaseAdapter):
 
         url = f"{base_url}/auth/token"
         headers = {
-            "x-marmin-signature": signature,
-            "X-MARMIN-VERSION": MARMIN_API_VERSION,
+            MARMIN_SIGNATURE_HEADER: signature,
+            MARMIN_VERSION_HEADER: MARMIN_API_VERSION,
         }
 
         response = requests.get(url, params={"client_id": client_id}, headers=headers)
@@ -1160,7 +1164,17 @@ def is_marmin_active():
     )
 
 
-MARMIN_WEBHOOK_SIGNATURE_HEADER = "x-marmin-signature"
+MARMIN_WEBHOOK_SIGNATURE_HEADER = MARMIN_SIGNATURE_HEADER
+# Marmin sends both signature headers on webhooks until 31 Dec 2026; the old
+# one is read only when the new one is missing.
+MARMIN_WEBHOOK_SIGNATURE_HEADER_OLD = "x-marmin-signature"
+
+
+def _marmin_received_webhook_signature():
+    headers = frappe.request.headers
+    return headers.get(MARMIN_WEBHOOK_SIGNATURE_HEADER) or headers.get(
+        MARMIN_WEBHOOK_SIGNATURE_HEADER_OLD
+    )
 
 
 def _verify_marmin_webhook_signature(raw_body, received_signature, webhook_secret):
@@ -1214,14 +1228,14 @@ def marmin_webhook_listener():
 
     settings = frappe.get_doc("E-Invoice Provider Settings", settings_name)
     webhook_secret = settings.get_password("webhook_secret")
-    received_signature = frappe.request.headers.get(MARMIN_WEBHOOK_SIGNATURE_HEADER)
+    received_signature = _marmin_received_webhook_signature()
 
     if not _verify_marmin_webhook_signature(raw_body, received_signature, webhook_secret):
         
         frappe.log_error(
             f"Signature check failed for Marmin webhook_event_id "
             f"{webhook_event_id} (profile_id {profile_id}) - header "
-            f"checked: {MARMIN_WEBHOOK_SIGNATURE_HEADER}",
+            f"checked: {MARMIN_WEBHOOK_SIGNATURE_HEADER} (or {MARMIN_WEBHOOK_SIGNATURE_HEADER_OLD})",
             "Marmin Webhook Signature Mismatch",
         )
         frappe.local.response["http_status_code"] = 401

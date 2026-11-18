@@ -161,7 +161,7 @@ Before anyone opens an editor, set expectations: most of the app does not care w
 
 ### What does change (this is the adapter)
 
-- **Authentication.** Flick does OAuth `client_credentials` → bearer token. Marmin signs the token request with HMAC-SHA256 of the client id, keyed with the secret, in an `x-marmin-signature` header. Suntech posts to a token endpoint and reports `expires_in`, which the adapter passes to the cache. Future ASPs may use mTLS certificates, signed JWT assertions, or a static key per company. All of that lives inside `_fetch_token` / `get_auth_headers`; the token cache in `base.py` handles expiry either way.
+- **Authentication.** Flick does OAuth `client_credentials` → bearer token. Marmin signs the token request with HMAC-SHA256 of the client id, keyed with the secret, in an `X-HMAC-Signature` header (renamed from `x-marmin-signature` in Marmin's API version 2026-05-07). Suntech posts to a token endpoint and reports `expires_in`, which the adapter passes to the cache. Future ASPs may use mTLS certificates, signed JWT assertions, or a static key per company. All of that lives inside `_fetch_token` / `get_auth_headers`; the token cache in `base.py` handles expiry either way.
   *On screen:* the Verify button on Provider Settings; which fields the user fills in differs slightly.
 - **Payload shape.** Same PINT-AE values, different envelope and key names, sometimes a separate builder module (Flick keeps `sales_json.py` / `purchase_json.py`). A future ASP may want raw UBL XML, a multipart upload, or a batch array of invoices. Only `_build_payload` (or the builder module) knows this.
   *On screen:* the attached `…_payload.json` on the invoice. Compare one from each ASP and you see the whole difference.
