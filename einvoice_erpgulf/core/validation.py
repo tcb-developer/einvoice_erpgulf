@@ -21,6 +21,18 @@ def block_cancel_if_reported(doc, method=None):
     reporting = (doc.get("custom_reporting_status") or "").strip().lower()
     einvoice = (doc.get("custom_einvoice_status") or "").strip().lower()
 
+    # A send that is queued or running could still create the e-invoice.
+    if doc.doctype == "Sales Invoice":
+        from einvoice_erpgulf.core.submit_sales import STATUS_QUEUED, is_send_in_progress
+        if einvoice == STATUS_QUEUED.lower() or is_send_in_progress(doc.name):
+            frappe.throw(
+                _(
+                    "The e-invoice for this invoice is being sent right now. "
+                    "Wait a minute, reload the invoice and try again."
+                ),
+                title=_("Cancellation not allowed"),
+            )
+
     # Never accepted by the tax authority -> safe to cancel
     if reporting in ("failed", "rejected"):
         return

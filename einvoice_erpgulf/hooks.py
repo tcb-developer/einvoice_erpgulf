@@ -154,6 +154,7 @@ scheduler_events = {
         ],
         "*/5 * * * *": [
             "einvoice_erpgulf.core.status_sync.sync_pending_invoices",
+            "einvoice_erpgulf.core.submit_sales.retry_unsent_einvoices",
         ],
     }
 }

@@ -433,6 +433,20 @@ class MarminAdapter(BaseAdapter):
 
         return response.status_code, response_data
 
+    def existing_document_id_from_response(self, status_code, response_data):
+        """Marmin answers a repeated document number with 409 and the id it
+        already has: {"errors": {"document_number": "... already exists.",
+        "uuid": "<id>"}}."""
+        if status_code != 409 or not isinstance(response_data, dict):
+            return None
+        errors = response_data.get("errors")
+        errors = errors if isinstance(errors, dict) else {}
+        message = str(errors.get("document_number") or "").lower()
+        uuid = errors.get("uuid") or response_data.get("uuid")
+        if uuid and "already exists" in message:
+            return str(uuid)
+        return None
+
     def _build_invoice_payload(self, doc):
         """Maps a Sales Invoice to Marmin's flat JSON shape"""
         default_vat_category = doc.custom_vat_category

@@ -23,7 +23,10 @@ frappe.ui.form.on("Sales Invoice", {
                         freeze_message: __("Generating and sending E-Invoice..."),
                         callback(r) {
                             if (!r.exc) {
-                                frappe.msgprint(__("E-Invoice processed successfully"));
+                                const result = (r.message || {}).result;
+                                if (result === "sent" || result === "already_at_provider") {
+                                    frappe.msgprint(__("E-Invoice processed successfully"));
+                                }
                                 frm.reload_doc();
                             }
                         }
@@ -37,7 +40,9 @@ frappe.ui.form.on("Sales Invoice", {
 });
 frappe.ui.form.on("Sales Invoice", {
     refresh: function (frm) {
-        if (!frm.doc.__islocal && frm.doc.custom_einvoice_status !== "Not Submitted") {
+        // Only an invoice that has a Document ID can be asked for its status
+        // (a queued or failed send has none yet).
+        if (!frm.doc.__islocal && einvoice_has_document_id(frm.doc)) {
 
             // Hide Get Document Status once reported
             // const is_reported = (frm.doc.custom_reporting_status || "").toLowerCase() === "reported";
@@ -210,3 +215,26 @@ function toggle_return_against_field(frm) {
         );
     });
 }
+
+// The background send (on submit, or an automatic retry) tells an open form
+// when it has finished, so the status and ribbon update without a manual reload.
+frappe.ui.form.on("Sales Invoice", {
+    setup() {
+        if (window.einvoice_send_listener_added) {
+            return;
+        }
+        window.einvoice_send_listener_added = true;
+        frappe.realtime.on("einvoice_send_finished", (data) => {
+            const frm = window.cur_frm;
+            if (
+                frm &&
+                frm.doctype === "Sales Invoice" &&
+                data &&
+                frm.doc.name === data.name &&
+                !frm.is_dirty()
+            ) {
+                frm.reload_doc();
+            }
+        });
+    },
+});

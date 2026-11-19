@@ -173,6 +173,13 @@ class BaseAdapter:
             "success": success,
         }
 
+    def existing_document_id_from_response(self, status_code, response_data):
+        """When a submit is refused because the provider already has this
+        invoice number, return the Document ID it already holds, so the
+        invoice is linked to it instead of being sent again. Override per
+        provider; None means "not a duplicate"."""
+        return None
+
     def get_status_from_document_status(self, body):
         """reporting_status out of a get_document_status() "response" body,
         for the shared "Get Document Status" buttons. Override if needed."""
