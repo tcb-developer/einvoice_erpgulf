@@ -73,12 +73,22 @@ function einvoice_render_status_ribbon(frm) {
         let html = " ";
         if (ribbon) {
             const [label, color] = ribbon;
+            // Corner geometry: a BOX x BOX clip box, a band BAND wide and
+            // HEIGHT tall, whose centre line runs DIST px from the top-right
+            // corner. The band's centre sits on the box diagonal, so the
+            // label is centred on the visible part of the band, which is
+            // 2 * (DIST - HEIGHT / 2) = 156px long on its inner edge.
+            const BOX = 150, BAND = 230, HEIGHT = 28, DIST = 92;
+            const offset = DIST / Math.SQRT2;
+            const top = Math.round(offset - HEIGHT / 2);
+            const right = Math.round(offset - BAND / 2);
+            const font_size = label.length > 18 ? 11 : 13;
             html =
                 '<div style="display:flex;justify-content:flex-end">' +
-                '<div style="position:relative;width:150px;height:150px;overflow:hidden;pointer-events:none">' +
-                '<div style="position:absolute;top:34px;right:-52px;width:230px;transform:rotate(45deg);' +
-                "background:" + color + ";color:#ffffff;font-weight:700;font-size:15px;letter-spacing:0.3px;" +
-                'text-align:center;line-height:34px;box-shadow:0 2px 4px rgba(0,0,0,0.25);">' +
+                '<div style="position:relative;width:' + BOX + "px;height:" + BOX + 'px;overflow:hidden;pointer-events:none">' +
+                '<div style="position:absolute;top:' + top + "px;right:" + right + "px;width:" + BAND + "px;transform:rotate(45deg);" +
+                "background:" + color + ";color:#ffffff;font-weight:700;font-size:" + font_size + "px;letter-spacing:0.3px;" +
+                "white-space:nowrap;text-align:center;line-height:" + HEIGHT + 'px;box-shadow:0 2px 4px rgba(0,0,0,0.25);">' +
                 frappe.utils.escape_html(label) +
                 "</div>" +
                 "</div></div>";
