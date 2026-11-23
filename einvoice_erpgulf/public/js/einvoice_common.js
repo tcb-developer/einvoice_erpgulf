@@ -30,6 +30,32 @@ function einvoice_has_document_id(doc) {
     return Boolean(id) && id.toUpperCase() !== "NOT SUBMITTED";
 }
 
+// Oman-only invoice fields. They are installed for every company, so show
+// them (and require the credit note reason on a return) only when the
+// invoice's company is in Oman. Other countries never see or fill them.
+const EINVOICE_OMAN_FIELDS = [
+    "custom_om_transaction_type_code",
+    "custom_om_credit_note_reason_code",
+    "custom_om_vat_exemption_reason_code",
+    "custom_om_zero_rating_reason_code",
+];
+
+function einvoice_toggle_oman_fields(frm) {
+    const fields = EINVOICE_OMAN_FIELDS.filter((f) => frm.get_field(f));
+    if (!fields.length) {
+        return;
+    }
+    const apply = (is_oman) => {
+        frm.toggle_display(fields, is_oman);
+        frm.toggle_reqd("custom_om_credit_note_reason_code", Boolean(is_oman && frm.doc.is_return));
+    };
+    if (!frm.doc.company) {
+        apply(false);
+        return;
+    }
+    einvoice_ui_labels(frm.doc.company).then((labels) => apply(labels.country === "OM"));
+}
+
 // Status corner ribbon, drawn into the HTML field
 // custom_einvoice_status_notification. A CSS ribbon: identical size and
 // position for every status, right-aligned in its own column and clipped to

@@ -47,7 +47,7 @@
         "insert_after": "custom_om_transaction_type_code",
         "options": "\nCAN - Cancellation\nVAT - VAT adjustment\nVAL - Value adjustment\nQTY - Quantity adjustment\nOTH - Other",
         "depends_on": "eval:doc.is_return",
-        "mandatory_depends_on": "eval:doc.is_return"
+        "mandatory_depends_on": ""
     },
     {
         "doctype": "Custom Field",
@@ -97,7 +97,7 @@
         "insert_after": "custom_om_transaction_type_code",
         "options": "\nCAN - Cancellation\nVAT - VAT adjustment\nVAL - Value adjustment\nQTY - Quantity adjustment\nOTH - Other",
         "depends_on": "eval:doc.is_return",
-        "mandatory_depends_on": "eval:doc.is_return"
+        "mandatory_depends_on": ""
     },
     {
         "doctype": "Custom Field",
