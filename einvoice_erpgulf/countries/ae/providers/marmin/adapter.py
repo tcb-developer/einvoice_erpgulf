@@ -524,38 +524,42 @@ class MarminAdapter(BaseAdapter):
             ],
         }
 
-       
-        if not doc.return_against:
-            frappe.throw(
-                _(
-                    "This credit note has no Return Against invoice set - Marmin "
-                    "requires the original invoice's Document ID as document_number "
-                    "for a credit note, and there's no Sales Invoice here to read it "
-                    "from."
-                )
-            )
-        original_invoice = frappe.get_doc("Sales Invoice", doc.return_against)
-        if not original_invoice.custom_document_id:
-            frappe.throw(
-                _(
-                    "Original invoice {0} has no Document ID (custom_document_id) yet - "
-                    "it needs to have been successfully submitted to Marmin first, so "
-                    "this credit note can reference its Marmin document id as "
-                    "document_number."
-                ).format(original_invoice.name)
-            )
-        payload["document_number"] = original_invoice.custom_document_id
-        payload["billing_reference"] = [
-            {
-                "id": original_invoice.name,
-                "issue_date": str(original_invoice.posting_date),
-            }
-        ]
+        from einvoice_erpgulf.countries.ae.providers.marmin.credit_note_reference import (
+            GOODS_RETURNED_REASON,
+            goods_returned,
+            original_invoices,
+        )
 
-        raw_reason = doc.custom_credit_note_reason_code
-        if raw_reason:
-            code, _sep, _reason = raw_reason.partition("-")
-            payload["discrepancy_response"] = code.strip()
+        # Marmin requires a reason. The one chosen on the credit note wins;
+        # left empty on a return of goods, it is "goods returned" (DL8.61.1.D).
+        reason_code = (doc.custom_credit_note_reason_code or "").partition("-")[0].strip()
+        if not reason_code and goods_returned(doc):
+            reason_code = GOODS_RETURNED_REASON
+        if reason_code:
+            payload["discrepancy_response"] = reason_code
+
+        # Like an invoice, a credit note is sent under its own number (it must
+        # be unique at Marmin). The invoice(s) it corrects go in
+        # billing_reference as number + date; their Marmin Document ID is not
+        # needed, so invoices from before go-live can be referenced too.
+        payload["document_number"] = doc.name
+
+        originals = original_invoices(doc)
+        if originals:
+            payload["billing_reference"] = [
+                {"id": inv.name, "issue_date": str(inv.posting_date)} for inv in originals
+            ]
+        elif reason_code != "VD":
+            frappe.throw(
+                _(
+                    "Credit note {0}: the original Sales Invoice could not be found. "
+                    "Marmin needs the number and date of the invoice being corrected. "
+                    "Set Return Against, or create the credit note from the Return "
+                    "Delivery Note or Sales Return Request of an invoice in the system. "
+                    "Only reason VD (volume discount) can go without it."
+                ).format(doc.name),
+                title=_("Original invoice not found"),
+            )
 
         return payload
 
