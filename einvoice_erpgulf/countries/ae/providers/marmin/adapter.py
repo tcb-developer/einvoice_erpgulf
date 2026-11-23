@@ -23,14 +23,13 @@ from einvoice_erpgulf.countries.ae.profile import (
 
 def _marmin_sales_invoice_type_code(doc):
     """Sales Invoice invoice_type_code, same rule json_einvoice.py's own
-    get_invoice_type_code uses: "381" for a return, "480" """
+    get_invoice_type_code uses: "380" tax invoice, "480" out-of-scope invoice,
+    "381" credit note, "81" out-of-scope credit note. The out-of-scope return
+    is checked first; otherwise every return would get "381"."""
+    out_of_scope = doc.custom_vat_category == "O - Not subject to VAT"
     if doc.is_return == 1:
-        return "381"
-    if doc.is_return == 1 and doc.custom_vat_category == "O - Not subject to VAT":
-        return "81"
-    if doc.custom_vat_category == "O - Not subject to VAT":
-        return "480"
-    return "380"
+        return "81" if out_of_scope else "381"
+    return "480" if out_of_scope else "380"
 
 
 def _marmin_purchase_invoice_type_code(doc):
