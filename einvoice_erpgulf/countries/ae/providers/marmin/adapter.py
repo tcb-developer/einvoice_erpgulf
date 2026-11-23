@@ -254,6 +254,8 @@ class MarminAdapter(BaseAdapter):
 
     def _document_resource_path(self, doc):
         """"sales-invoices", "sales-credit-notes", or purchas invoice"""
+        if doc.doctype == "Journal Entry":
+            return "sales-credit-notes"  # a Credit Note Journal Entry is sent as a credit note
         if doc.doctype == "Purchase Invoice":
             return MARMIN_PURCHASE_CREDIT_NOTE_PATH if doc.is_return else "purchase-invoices"
         return "sales-credit-notes" if doc.is_return else "sales-invoices"
@@ -537,6 +539,11 @@ class MarminAdapter(BaseAdapter):
             reason_code = GOODS_RETURNED_REASON
         if reason_code:
             payload["discrepancy_response"] = reason_code
+
+        # ERPNext keeps return quantities negative; Marmin wants them positive.
+        for line in payload["document_lines"]:
+            if isinstance(line.get("quantity"), (int, float)):
+                line["quantity"] = abs(line["quantity"])
 
         # Like an invoice, a credit note is sent under its own number (it must
         # be unique at Marmin). The invoice(s) it corrects go in
@@ -1267,8 +1274,15 @@ def marmin_webhook_listener():
         "Purchase Invoice", {"custom_document_id": resource_id}, ["name", "is_return"], as_dict=True
     )
     purchase_invoice_name = purchase_invoice_row.name if purchase_invoice_row else None
+    journal_entry_name = None
+    if not sales_invoice_row and not purchase_invoice_row and frappe.db.has_column(
+        "Journal Entry", "custom_document_id"
+    ):
+        journal_entry_name = frappe.db.get_value("Journal Entry", {"custom_document_id": resource_id}, "name")
 
-    if purchase_invoice_row and purchase_invoice_row.is_return:
+    if journal_entry_name:
+        resource_path = "sales-credit-notes"
+    elif purchase_invoice_row and purchase_invoice_row.is_return:
         resource_path = MARMIN_PURCHASE_CREDIT_NOTE_PATH
     elif purchase_invoice_name:
         resource_path = "purchase-invoices"
@@ -1317,6 +1331,14 @@ def marmin_webhook_listener():
             frappe.db.set_value(
                 "Purchase Invoice",
                 purchase_invoice_name,
+                "custom_reporting_status",
+                reporting_status,
+            )
+
+        if journal_entry_name:
+            frappe.db.set_value(
+                "Journal Entry",
+                journal_entry_name,
                 "custom_reporting_status",
                 reporting_status,
             )

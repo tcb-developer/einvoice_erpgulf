@@ -66,6 +66,10 @@ def install_country_fields():
 def after_migrate():
 	sync_country_fields()
 	sync_provider_options()
+	if frappe.db.has_column("Journal Entry", "custom_einvoice_item"):
+		from einvoice_erpgulf.countries.ae.providers.marmin.journal_entry import ensure_item_group
+
+		ensure_item_group()
 
 
 after_install = after_migrate

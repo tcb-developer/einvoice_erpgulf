@@ -108,6 +108,10 @@ doctype_js = {
     "E-Invoice Provider Settings": "public/js/e_invoice_provider_settings.js",
     "Supplier": "public/js/marmin_party.js",
     "Address": "public/js/oman_fields.js",
+    "Journal Entry": [
+        "public/js/einvoice_common.js",
+        "public/js/journal_entry_einvoice.js",
+    ],
     "Item Tax Template": "public/js/oman_fields.js",
 }
 doctype_list_js = {
@@ -127,6 +131,13 @@ doc_events = {
         "on_submit": "einvoice_erpgulf.core.submit_sales.generate_and_send_einvoice",
         "before_submit": "einvoice_erpgulf.core.validation.validate_accredited_service_provider",
         "before_cancel": "einvoice_erpgulf.core.validation.block_cancel_if_reported",
+    },
+    # Credit Note Journal Entry -> stand-alone credit note e-invoice (UAE, Marmin)
+    "Journal Entry": {
+        "validate": "einvoice_erpgulf.countries.ae.providers.marmin.journal_entry.validate",
+        "before_update_after_submit": "einvoice_erpgulf.countries.ae.providers.marmin.journal_entry.before_update_after_submit",
+        "on_submit": "einvoice_erpgulf.countries.ae.providers.marmin.journal_entry.on_submit",
+        "before_cancel": "einvoice_erpgulf.countries.ae.providers.marmin.journal_entry.before_cancel",
     },
     "Purchase Invoice": {
         "on_submit": "einvoice_erpgulf.core.send_purchase.generate_and_send_einvoice",

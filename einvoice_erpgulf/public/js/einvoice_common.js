@@ -65,7 +65,10 @@ function einvoice_toggle_oman_fields(frm) {
 // a fixed box so it never overlaps the sidebar.
 function einvoice_render_status_ribbon(frm) {
     const field = "custom_einvoice_status_notification";
-    if (!frm.get_field(field)) {
+    // Journal Entry: drawn over the form card's top-right corner instead of
+    // in a field, so it takes no room from the fields below it.
+    const overlay = frm.doctype === "Journal Entry";
+    if (overlay ? !frm.get_field("custom_einvoice_item") : !frm.get_field(field)) {
         return;
     }
     einvoice_ui_labels(frm.doc.company).then((labels) => {
@@ -97,6 +100,17 @@ function einvoice_render_status_ribbon(frm) {
             // Submitted, e-invoicing is on for the company, but no e-invoice
             // exists yet (never sent, or the provider did not accept it).
             ribbon = ["E-Invoice Pending", "#F29D1C"];
+        } else if (
+            frm.doctype === "Journal Entry" &&
+            frm.doc.voucher_type === "Credit Note" &&
+            !cint(frm.doc.is_system_generated) &&
+            !frm.is_new() &&
+            frm.doc.docstatus !== 2 &&
+            labels.einvoice_enabled &&
+            !einvoice_has_document_id(frm.doc)
+        ) {
+            // Credit Note Journal Entry, saved, no e-invoice yet.
+            ribbon = ["E-Invoice Pending", "#F29D1C"];
         }
 
         let html = " ";
@@ -121,6 +135,23 @@ function einvoice_render_status_ribbon(frm) {
                 frappe.utils.escape_html(label) +
                 "</div>" +
                 "</div></div>";
+        }
+        if (overlay) {
+            // The form card itself, below the "Submit this document" message.
+            const layout = $(frm.layout.wrapper);
+            const page = layout.children(".form-page").first();
+            const host = page.length ? page : layout;
+            layout.children(".einvoice-ribbon-overlay").remove();
+            host.css("position", "relative");
+            let box = host.children(".einvoice-ribbon-overlay");
+            if (!box.length) {
+                box = $(
+                    '<div class="einvoice-ribbon-overlay" style="position:absolute;top:0;right:0;z-index:3;' +
+                    'pointer-events:none;overflow:hidden;border-top-right-radius:var(--border-radius-lg, 12px)"></div>'
+                ).appendTo(host);
+            }
+            box.html(ribbon ? html : "");
+            return;
         }
         frm.set_df_property(field, "options", html);
         frm.refresh_field(field);

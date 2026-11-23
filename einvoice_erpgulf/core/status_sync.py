@@ -84,7 +84,11 @@ def sync_pending_invoices():
     and are not final yet, or are still missing XML / PDF."""
     since = frappe.utils.add_days(frappe.utils.nowdate(), -SYNC_LOOKBACK_DAYS)
 
-    for doctype in INVOICE_DOCTYPES:
+    doctypes = INVOICE_DOCTYPES
+    if frappe.db.has_column("Journal Entry", "custom_document_id"):
+        doctypes = doctypes + ("Journal Entry",)  # Credit Note Journal Entries (UAE)
+
+    for doctype in doctypes:
         rows = frappe.get_all(
             doctype,
             filters={
