@@ -32,7 +32,8 @@ function einvoice_has_document_id(doc) {
 
 // Oman-only invoice fields. They are installed for every company, so show
 // them (and require the credit note reason on a return) only when the
-// invoice's company is in Oman. Other countries never see or fill them.
+// invoice's company is in Oman AND has e-invoicing switched on. Until Oman
+// e-invoicing is set up, nobody sees or fills them.
 const EINVOICE_OMAN_FIELDS = [
     "custom_om_transaction_type_code",
     "custom_om_credit_note_reason_code",
@@ -53,7 +54,9 @@ function einvoice_toggle_oman_fields(frm) {
         apply(false);
         return;
     }
-    einvoice_ui_labels(frm.doc.company).then((labels) => apply(labels.country === "OM"));
+    einvoice_ui_labels(frm.doc.company).then((labels) =>
+        apply(labels.country === "OM" && Boolean(labels.einvoice_enabled))
+    );
 }
 
 // Status corner ribbon, drawn into the HTML field

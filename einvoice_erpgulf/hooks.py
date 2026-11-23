@@ -107,6 +107,8 @@ doctype_js = {
     ],
     "E-Invoice Provider Settings": "public/js/e_invoice_provider_settings.js",
     "Supplier": "public/js/marmin_party.js",
+    "Address": "public/js/oman_fields.js",
+    "Item Tax Template": "public/js/oman_fields.js",
 }
 doctype_list_js = {
     "Sales Invoice": "public/js/bulk_submit.js",

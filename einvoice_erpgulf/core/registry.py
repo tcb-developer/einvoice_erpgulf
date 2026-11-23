@@ -115,6 +115,15 @@ def get_ui_labels(company: str):
 		return {}
 
 
+@frappe.whitelist()
+def oman_einvoicing_active():
+	"""True once any Company in Oman has e-invoicing switched on. Until then
+	the Oman-only fields stay hidden on Address and Item Tax Template."""
+	return bool(
+		frappe.db.exists("Company", {"country": "Oman", "custom_einvoice_enabled": 1})
+	)
+
+
 # ---------------------------------------------------------------- providers
 @frappe.whitelist()
 def registered_providers(country: str | None = None):
