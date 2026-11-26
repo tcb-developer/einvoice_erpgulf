@@ -49,12 +49,35 @@ def block_cancel_if_reported(doc, method=None):
     )
 
 
+PURCHASE_ENABLED_FIELD = "custom_einvoice_purchase_enabled"
+
+
+def purchase_einvoicing_enabled(company):
+    """Purchase Invoices go to e-invoicing only when the Company has
+    e-invoicing on AND "Send Purchase Invoices for E-Invoicing" ticked."""
+    if not company:
+        return False
+    values = frappe.db.get_value(
+        "Company", company, ["custom_einvoice_enabled", PURCHASE_ENABLED_FIELD], as_dict=True
+    )
+    return bool(values and values.custom_einvoice_enabled and values.get(PURCHASE_ENABLED_FIELD))
+
+
+def purchase_einvoicing_off_message(company):
+    return _(
+        "E-invoicing for Purchase Invoices is switched off for {0}. "
+        "To switch it on, tick Send Purchase Invoices for E-Invoicing in the E-Invoicing section of the Company."
+    ).format(company)
+
+
 def validate_accredited_service_provider(doc, method=None):
     """Runs before a Sales/Purchase Invoice is submitted. """
     company_doc = frappe.get_doc("Company", doc.company)
 
     if not company_doc.custom_einvoice_enabled:
         return
+    if doc.doctype == "Purchase Invoice" and not company_doc.get(PURCHASE_ENABLED_FIELD):
+        return  # Purchase Invoice e-invoicing is switched off for this company
 
     provider = company_doc.custom_einvoice_provider
     if not provider:

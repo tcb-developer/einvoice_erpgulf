@@ -110,6 +110,8 @@ def get_ui_labels(company: str):
 		labels["einvoice_enabled"] = bool(
 			frappe.db.get_value("Company", company, "custom_einvoice_enabled")
 		)
+		from einvoice_erpgulf.core.validation import purchase_einvoicing_enabled
+		labels["purchase_einvoice_enabled"] = purchase_einvoicing_enabled(company)
 		return labels
 	except Exception:
 		return {}

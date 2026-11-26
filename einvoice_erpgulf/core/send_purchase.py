@@ -7,7 +7,11 @@ from einvoice_erpgulf.core.provider_settings import get_active_provider_settings
 from einvoice_erpgulf.core.registry import get_adapter
 from einvoice_erpgulf.core.attach import get_document_xml
 from einvoice_erpgulf.core.attach import get_document_pdf
-from einvoice_erpgulf.core.validation import success_log
+from einvoice_erpgulf.core.validation import (
+    purchase_einvoicing_enabled,
+    purchase_einvoicing_off_message,
+    success_log,
+)
 def send_invoice_to_provider(doc, method=None):
     """On Purchase Invoice Submit and after JSON generation, send it"""
 
@@ -59,8 +63,11 @@ def generate_and_send_einvoice(doc: Union[Document, str], method: Optional[str] 
         doc = frappe.get_doc(doc)
     if doc.doctype != "Purchase Invoice":
         return
-    if not frappe.db.get_value("Company", doc.company, "custom_einvoice_enabled"):
-        return  # e-invoicing is switched off for this company
+    if not purchase_einvoicing_enabled(doc.company):
+        # Submit hook: skip quietly. Send Invoice button / direct call: say why.
+        if method is None:
+            frappe.throw(purchase_einvoicing_off_message(doc.company))
+        return
 
     try:
         settings = get_active_provider_settings(doc.company)
@@ -151,6 +158,9 @@ def bulk_send_invoices(invoices: list | str):
         try:
             # Load documents
             doc = frappe.get_doc("Purchase Invoice", invoice)
+            if not purchase_einvoicing_enabled(doc.company):
+                failed.append(f"{invoice} : {purchase_einvoicing_off_message(doc.company)}")
+                continue
             company_doc = frappe.get_doc("Company", doc.company)
 
             status = doc.custom_einvoice_status

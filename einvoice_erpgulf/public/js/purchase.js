@@ -1,9 +1,23 @@
+// Purchase Invoice e-invoicing has its own switch on the Company
+// ("Send Purchase Invoices for E-Invoicing"). While it is off, the
+// e-invoice buttons are not shown on Purchase Invoices.
+function einvoice_purchase_on(frm) {
+    if (!frm.doc.company) {
+        return Promise.resolve(false);
+    }
+    return einvoice_ui_labels(frm.doc.company).then((labels) =>
+        Boolean(labels.purchase_einvoice_enabled)
+    );
+}
+
 frappe.ui.form.on("Purchase Invoice", {
     refresh(frm) {
 
         frm.clear_custom_buttons();
 
+        einvoice_purchase_on(frm).then((on) => {
         if (
+            on &&
             frm.doc.docstatus === 1 &&
             (
                 frm.doc.custom_einvoice_status === "Not Submitted" ||
@@ -34,11 +48,18 @@ frappe.ui.form.on("Purchase Invoice", {
                 __("E-Invoice")
             );
         }
+        });
     }
 });
 frappe.ui.form.on("Purchase Invoice", {
     refresh: function (frm) {
-        if (!frm.doc.__islocal && frm.doc.custom_einvoice_status !== "Not Submitted") {
+        // Already-sent invoices keep their status / XML / PDF buttons even
+        // after the switch is turned off.
+        einvoice_purchase_on(frm).then((on) => {
+        if (
+            (on || einvoice_has_document_id(frm.doc)) &&
+            !frm.doc.__islocal && frm.doc.custom_einvoice_status !== "Not Submitted"
+        ) {
 
             // Hide Get Document Status once reported
             const is_reported = ["reported", "rejected", "delivered"].includes(
@@ -190,15 +211,21 @@ frappe.ui.form.on("Purchase Invoice", {
                 }, __('Get Document'));
             }
         }
+        });
     }
 });
 
 
 frappe.ui.form.on('Purchase Invoice', {
     refresh: function (frm) {
-        frm.add_custom_button(__('Get Incoming Invoices'), function () {
-            get_fta_incoming_invoices(frm);
-        }, __('Get Items From'));
+        einvoice_purchase_on(frm).then((on) => {
+            if (!on) {
+                return;
+            }
+            frm.add_custom_button(__('Get Incoming Invoices'), function () {
+                get_fta_incoming_invoices(frm);
+            }, __('Get Items From'));
+        });
     }
 });
 
@@ -438,7 +465,8 @@ function process_invoices_sequentially(rows, index, results, dialog, frm) {
 
 frappe.ui.form.on('Purchase Invoice', {
     refresh: function (frm) {
-        if (frm.doc.docstatus !== 2) {
+        einvoice_purchase_on(frm).then((on) => {
+        if (on && frm.doc.docstatus !== 2) {
             frm.add_custom_button(__('Match & Approve'), function () {
                 match_and_approve_fta(frm);
             });
@@ -447,6 +475,7 @@ frappe.ui.form.on('Purchase Invoice', {
                 check_fta_match_status(frm);
             }
         }
+        });
     }
 });
 
