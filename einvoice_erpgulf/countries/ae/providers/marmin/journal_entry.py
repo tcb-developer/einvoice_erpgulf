@@ -68,20 +68,33 @@ def has_document_id(doc):
 
 
 # ---------------------------------------------------------------- amounts
-def customer_of(doc):
-    customers = {
+def _customers(doc):
+    return {
         row.party
         for row in doc.get("accounts") or []
         if row.get("party_type") == "Customer" and row.get("party")
     }
+
+
+def _customer_count_message(count):
+    return _(
+        "A Credit Note Journal Entry for e-invoicing needs exactly one customer "
+        "in its Accounting Entries; {0} found."
+    ).format(count)
+
+
+def _single_customer(doc):
+    """The entry's one customer, or None. Never shows a message: the form
+    preview runs on every change, and a frappe.throw caught here would still
+    leave its popup queued for the browser."""
+    customers = _customers(doc)
+    return next(iter(customers)) if len(customers) == 1 else None
+
+
+def customer_of(doc):
+    customers = _customers(doc)
     if len(customers) != 1:
-        frappe.throw(
-            _(
-                "A Credit Note Journal Entry for e-invoicing needs exactly one customer "
-                "in its Accounting Entries; {0} found."
-            ).format(len(customers)),
-            title=_("E-Invoice"),
-        )
+        frappe.throw(_customer_count_message(len(customers)), title=_("E-Invoice"))
     return customers.pop()
 
 
@@ -96,9 +109,9 @@ def _tax_accounts(doc):
     )
 
 
-def amounts(doc):
+def amounts(doc, customer=None):
     """(customer amount, VAT amount, net amount) of the entry, all positive."""
-    customer = customer_of(doc)
+    customer = customer or customer_of(doc)
     tax_accounts = _tax_accounts(doc)
     gross = abs(
         sum(
@@ -112,10 +125,10 @@ def amounts(doc):
 
 
 def default_vat_category(doc):
-    try:
-        _gross, vat, _net = amounts(doc)
-    except frappe.ValidationError:
+    customer = _single_customer(doc)
+    if not customer:
         return None
+    _gross, vat, _net = amounts(doc, customer)
     return VAT_STANDARD if vat else VAT_NOT_SUBJECT
 
 
@@ -126,6 +139,10 @@ def validate(doc, method=None):
     if not doc.get("custom_vat_category"):
         doc.custom_vat_category = default_vat_category(doc)
     _check_item(doc)
+    # Shown once on save, not on every field change; saving is not blocked.
+    customers = _customers(doc)
+    if len(customers) != 1 and einvoicing_enabled(doc.company):
+        frappe.msgprint(_customer_count_message(len(customers)), title=_("E-Invoice"), indicator="orange")
 
 
 def _check_item(doc):
@@ -388,11 +405,11 @@ def build_credit_note(doc):
 
 def preview(doc):
     """What the e-invoice line will be, for the form."""
-    try:
-        customer = customer_of(doc)
-        gross, vat, net = amounts(doc)
-    except frappe.ValidationError as e:
-        return {"error": str(e)}
+    customers = _customers(doc)
+    if len(customers) != 1:
+        return {"error": _customer_count_message(len(customers))}
+    customer = next(iter(customers))
+    gross, vat, net = amounts(doc, customer)
     category = doc.get("custom_vat_category") or default_vat_category(doc)
     return {
         "item": doc.get("custom_einvoice_item"),
