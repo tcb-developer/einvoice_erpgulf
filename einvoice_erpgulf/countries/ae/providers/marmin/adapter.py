@@ -19,6 +19,10 @@ from einvoice_erpgulf.countries.ae.profile import (
     emirate_code as _marmin_uae_emirate_code,
     vat_category_code as _marmin_vat_category_code,
 )
+from einvoice_erpgulf.countries.ae.providers.marmin.document_charges import (
+    default_vat_rate as _marmin_default_vat_rate,
+    document_charges as _marmin_document_charges,
+)
 
 
 def _marmin_sales_invoice_type_code(doc):
@@ -451,10 +455,10 @@ class MarminAdapter(BaseAdapter):
     def _build_invoice_payload(self, doc):
         """Maps a Sales Invoice to Marmin's flat JSON shape"""
         default_vat_category = doc.custom_vat_category
-        default_vat_rate = doc.taxes[0].rate if doc.taxes else 0
+        default_vat_rate = _marmin_default_vat_rate(doc)
         default_exemption_label = doc.custom_vat_exemption_reason_code
 
-        return {
+        payload = {
             "profile_execution_id": MARMIN_PROFILE_EXECUTION_ID_STANDARD,
             "document_number": doc.name,
             "issue_date": str(doc.posting_date),
@@ -472,6 +476,16 @@ class MarminAdapter(BaseAdapter):
                 for item in doc.items
             ],
         }
+        self._add_document_charges(payload, doc, default_vat_category, default_exemption_label)
+        return payload
+
+    def _add_document_charges(self, payload, doc, default_vat_category, default_exemption_label):
+        """Freight and similar rows of the Taxes table, as document level
+        charges (see document_charges.py). Nothing is added when there are none."""
+        default_code = _marmin_vat_category_code(default_vat_category) if default_vat_category else "S"
+        charges = _marmin_document_charges(doc, default_code, default_exemption_label)
+        if charges:
+            payload["charges"] = charges
 
     def _submit_credit_note(self, doc):
         """POST /api/sales-credit-notes/{business_profile_id"""
@@ -505,7 +519,7 @@ class MarminAdapter(BaseAdapter):
     def _build_credit_note_payload(self, doc):
         """Maps a return Sales Invoice to Marmin's credit note """
         default_vat_category = doc.custom_vat_category
-        default_vat_rate = doc.taxes[0].rate if doc.taxes else 0
+        default_vat_rate = _marmin_default_vat_rate(doc)
         default_exemption_label = doc.custom_vat_exemption_reason_code
 
         payload = {
@@ -539,6 +553,8 @@ class MarminAdapter(BaseAdapter):
             reason_code = GOODS_RETURNED_REASON
         if reason_code:
             payload["discrepancy_response"] = reason_code
+
+        self._add_document_charges(payload, doc, default_vat_category, default_exemption_label)
 
         # ERPNext keeps return quantities negative; Marmin wants them positive.
         for line in payload["document_lines"]:
