@@ -26,6 +26,7 @@ import json
 
 import frappe
 from frappe import _
+from frappe.contacts.doctype.address.address import get_default_address
 from frappe.utils import cint, flt
 
 DOCTYPE = "Journal Entry"
@@ -386,6 +387,9 @@ def build_credit_note(doc):
             "is_return": 1,
             "company": doc.company,
             "customer": customer,
+            # Same address a Sales Invoice gets: the customer's primary
+            # address, even when Customer Primary Address is empty.
+            "customer_address": get_default_address("Customer", customer),
             "posting_date": doc.posting_date,
             "posting_time": frappe.utils.get_time(doc.creation).strftime("%H:%M:%S") if doc.creation else None,
             "due_date": doc.posting_date,
