@@ -56,3 +56,91 @@ def set_transaction_type_code(doc, method=None):
 	from einvoice_erpgulf.countries.ae.profile import transaction_type_flags
 
 	doc.set(CODE_FIELD, transaction_type_flags(doc))
+
+
+
+def _is_trn(value):
+	value = (value or "").strip()
+	return len(value) == 15 and value.isdigit() and value.startswith("1") and value.endswith("03")
+
+
+def _address_problems(name, label, need_outside_uae):
+	"""What the delivery address lacks for Marmin's delivery location."""
+	if not name:
+		return [frappe._("select a Shipping Address on the invoice ({0})").format(label)]
+	a = frappe.db.get_value("Address", name, ["address_line1", "city", "country", "state", "emirate", "custom_governorate"], as_dict=True) or {}
+	link = frappe.utils.get_link_to_form("Address", name)
+	missing = [field for field, value in (("Address Line 1", a.get("address_line1")), ("City", a.get("city")), ("Country", a.get("country"))) if not value]
+	in_uae = a.get("country") == "United Arab Emirates"
+	if in_uae and not a.get("emirate"):
+		missing.append("Emirate")
+	if a.get("country") and not in_uae and not (a.get("state") or a.get("custom_governorate")):
+		missing.append("State/Province/Area")
+	problems = []
+	if missing:
+		problems.append(frappe._("fill {0} on Shipping Address {1} ({2})").format(", ".join(missing), link, label))
+	if need_outside_uae and in_uae:
+		problems.append(frappe._("Shipping Address {0} is in the UAE; an export needs the delivery address outside the UAE ({1})").format(link, label))
+	return problems
+
+
+def _line_vat_code(item, default_label):
+	from einvoice_erpgulf.countries.ae.profile import vat_category_code
+
+	label = default_label
+	if item.get("item_tax_template"):
+		label = frappe.db.get_value("Item Tax Template", item.item_tax_template, "custom_vat_category") or default_label
+	return vat_category_code(label) if label else "S"
+
+
+def validate_transaction_type_details(doc, method=None):
+	"""Sales Invoice before_submit: each Transaction Type picked needs extra
+	details on the e-invoice (Marmin rejects it otherwise). All problems are
+	listed in one message; nothing is checked for a normal sale (00000000)."""
+	from einvoice_erpgulf.countries.ae.profile import transaction_type_flags
+
+	flags = transaction_type_flags(doc)
+	if flags == "00000000":
+		return
+	if not frappe.db.get_value("Company", doc.company, "custom_einvoice_enabled"):
+		return  # no e-invoice for this company, nothing goes to Marmin
+	problems = []
+
+	if flags[0] == "1":  # Free Trade Zone
+		if doc.get("customer") and not (frappe.db.get_value("Customer", doc.customer, "custom_fz_beneficiary_id") or "").strip():
+			problems.append(frappe._(
+				"Free Trade Zone: enter the FZ Beneficiary ID on Customer {0} (the Free Zone entity's 10-digit TIN or 15-digit TRN)"
+			).format(frappe.utils.get_link_to_form("Customer", doc.customer, doc.customer_name or doc.customer)))
+
+	if flags[2] == "1":  # Profit Margin Scheme
+		wrong = [str(item.idx) for item in doc.get("items") or [] if _line_vat_code(item, doc.get("custom_vat_category")) != "N"]
+		if wrong:
+			problems.append(frappe._(
+				"Profit Margin Scheme: every item must have VAT Category \"N - Margin scheme\" (rows {0}). Set it in VAT Category or the row's Item Tax Template"
+			).format(", ".join(wrong)))
+
+	if flags[3] == "1":  # Summary Invoice
+		if not doc.get("from_date") or not doc.get("to_date"):
+			problems.append(frappe._("Summary Invoice: fill From Date and To Date (the period this invoice covers)"))
+		elif frappe.utils.getdate(doc.from_date) > frappe.utils.getdate(doc.to_date):
+			problems.append(frappe._("Summary Invoice: From Date must be on or before To Date"))
+
+	if flags[5] == "1":  # Agent Billing
+		if not _is_trn(doc.get("custom_principal_trn")):
+			problems.append(frappe._(
+				"Agent Billing: enter the principal's TRN in Principal TRN (15 digits, starting with 1 and ending with 03)"
+			))
+
+	if flags[6] == "1":  # E-commerce
+		problems += [frappe._("Supply Through E-commerce: {0}").format(p) for p in _address_problems(doc.get("shipping_address_name"), frappe._("delivery location"), False)]
+
+	if flags[7] == "1":  # Exports
+		problems += [frappe._("Exports: {0}").format(p) for p in _address_problems(doc.get("shipping_address_name"), frappe._("delivery location"), True)]
+
+	if problems:
+		frappe.throw(
+			frappe._("This invoice cannot be submitted yet. The Transaction Types selected ({0}) need these details on the e-invoice:").format(flags)
+			+ "<ul>" + "".join(f"<li>{p}</li>" for p in problems) + "</ul>"
+			+ frappe._("Fill them and submit again, or remove the Transaction Type if it does not apply."),
+			title=frappe._("E-Invoice details missing"),
+		)

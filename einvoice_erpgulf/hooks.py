@@ -131,7 +131,10 @@ doc_events = {
     "Sales Invoice": {
         "validate": "einvoice_erpgulf.countries.ae.transaction_types.set_transaction_type_code",
         "on_submit": "einvoice_erpgulf.core.submit_sales.generate_and_send_einvoice",
-        "before_submit": "einvoice_erpgulf.core.validation.validate_accredited_service_provider",
+        "before_submit": [
+            "einvoice_erpgulf.core.validation.validate_accredited_service_provider",
+            "einvoice_erpgulf.countries.ae.transaction_types.validate_transaction_type_details",
+        ],
         "before_cancel": "einvoice_erpgulf.core.validation.block_cancel_if_reported",
     },
     # Credit Note Journal Entry -> stand-alone credit note e-invoice (UAE, Marmin)
