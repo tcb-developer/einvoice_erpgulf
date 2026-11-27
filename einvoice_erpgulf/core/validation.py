@@ -145,6 +145,12 @@ def validate_party_address(doc):
         address.get("emirate") or ""
     ).strip():
         missing.append(_("Emirate"))
+    # Outside the UAE the e-invoice needs the region instead (State/Province)
+    is_uae = (address.country or "").strip().lower() in ("united arab emirates", "uae")
+    if (address.country or "").strip() and not is_uae and not (
+        (address.get("state") or address.get("custom_governorate") or "").strip()
+    ):
+        missing.append(_("State/Province/Area"))
 
     if missing:
         frappe.throw(

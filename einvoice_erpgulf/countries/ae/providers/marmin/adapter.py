@@ -1047,7 +1047,21 @@ class MarminAdapter(BaseAdapter):
         if address_data.country and address_data.country.lower() in country_dict:
             country_code = country_dict[address_data.country.lower()]
 
-        country_subentity = _marmin_uae_emirate_code(address_data.emirate)
+        if country_code == "AE":
+            country_subentity = _marmin_uae_emirate_code(address_data.emirate)
+        else:
+            # Outside the UAE the region is the address's State/Province
+            # (Governorate for Oman); Marmin requires one for every buyer.
+            country_subentity = (
+                (address_data.get("state") or address_data.get("custom_governorate") or "").strip() or None
+            )
+            if not country_subentity:
+                frappe.throw(
+                    _(
+                        "Customer {0}'s address {1} needs State/Province/Area - Marmin "
+                        "requires the region for a buyer outside the UAE."
+                    ).format(doc.customer, address_data.name)
+                )
         if country_code == "AE" and not country_subentity:
             frappe.throw(
                 _(
@@ -1086,7 +1100,9 @@ class MarminAdapter(BaseAdapter):
         }
 
        
-        if customer_doc.tax_id:
+        # party_tax_scheme carries a UAE TRN only. A customer registered in
+        # another country (e.g. a Bahrain VAT number) has none to send.
+        if customer_doc.tax_id and country_code == "AE":
             party["party_tax_scheme"] = {
                 "company_id": customer_doc.tax_id,
                 "tax_scheme": "VAT",
