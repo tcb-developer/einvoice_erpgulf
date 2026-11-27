@@ -20,6 +20,9 @@ from einvoice_erpgulf.countries.ae.profile import (
     transaction_type_flags as _marmin_transaction_type_flags,
     vat_category_code as _marmin_vat_category_code,
 )
+from einvoice_erpgulf.countries.ae.providers.marmin.transaction_details import (
+    add_transaction_details as _marmin_add_transaction_details,
+)
 from einvoice_erpgulf.countries.ae.providers.marmin.document_charges import (
     default_vat_rate as _marmin_default_vat_rate,
     document_charges as _marmin_document_charges,
@@ -480,6 +483,7 @@ class MarminAdapter(BaseAdapter):
             ],
         }
         self._add_document_charges(payload, doc, default_vat_category, default_exemption_label)
+        _marmin_add_transaction_details(payload, doc)
         return payload
 
     def _add_document_charges(self, payload, doc, default_vat_category, default_exemption_label):
@@ -560,6 +564,7 @@ class MarminAdapter(BaseAdapter):
             payload["discrepancy_response"] = reason_code
 
         self._add_document_charges(payload, doc, default_vat_category, default_exemption_label)
+        _marmin_add_transaction_details(payload, doc)
 
         # ERPNext keeps return quantities negative; Marmin wants them positive.
         for line in payload["document_lines"]:
