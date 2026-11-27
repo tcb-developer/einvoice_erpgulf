@@ -17,6 +17,7 @@ from einvoice_erpgulf.countries.ae.profile import (
     DEFAULT_ENDPOINT_SCHEME,
     UOM_TO_UNECE,
     emirate_code as _marmin_uae_emirate_code,
+    transaction_type_flags as _marmin_transaction_type_flags,
     vat_category_code as _marmin_vat_category_code,
 )
 from einvoice_erpgulf.countries.ae.providers.marmin.document_charges import (
@@ -459,7 +460,9 @@ class MarminAdapter(BaseAdapter):
         default_exemption_label = doc.custom_vat_exemption_reason_code
 
         payload = {
-            "profile_execution_id": MARMIN_PROFILE_EXECUTION_ID_STANDARD,
+            # Invoice Transaction Type Code on the Sales Invoice; blank sends
+            # 00000000 (normal sale).
+            "profile_execution_id": _marmin_transaction_type_flags(doc),
             "document_number": doc.name,
             "issue_date": str(doc.posting_date),
             "issue_time": _marmin_issue_time(doc),
@@ -523,7 +526,9 @@ class MarminAdapter(BaseAdapter):
         default_exemption_label = doc.custom_vat_exemption_reason_code
 
         payload = {
-            "profile_execution_id": MARMIN_PROFILE_EXECUTION_ID_STANDARD,
+            # Invoice Transaction Type Code on the Sales Invoice; blank sends
+            # 00000000 (normal sale).
+            "profile_execution_id": _marmin_transaction_type_flags(doc),
             "issue_date": str(doc.posting_date),
             "issue_time": _marmin_issue_time(doc),
             "credit_note_type_code": _marmin_sales_invoice_type_code(doc),

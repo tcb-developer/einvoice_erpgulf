@@ -185,11 +185,19 @@ def transaction_type_pattern(doc):
 
 
 def transaction_type_flags(doc):
-	"""custom_invoice_transaction_type_code -> the 8-character 0/1 flag
-	string BTAE-02 needs ('1XXXXXX' -> '10000000')."""
+	"""The 8-character 0/1 flag string BTAE-02 needs. Every Transaction Type
+	picked in the multi-select (custom_einvoice_transaction_types) sets its
+	place, so several can be combined (Free Trade Zone + Deemed Supply ->
+	'11000000'). The older single dropdown custom_invoice_transaction_type_code
+	('1XXXXXX' -> '10000000') still counts when filled. Nothing -> '00000000'."""
+	from einvoice_erpgulf.countries.ae.transaction_types import selected_positions
+
 	raw = transaction_type_pattern(doc) or ""
-	bits = "".join("1" if c == "1" else "0" for c in raw)
-	return (bits + "00000000")[:8]
+	bits = list((("".join("1" if c == "1" else "0" for c in raw)) + "00000000")[:8])
+	for position in selected_positions(doc):
+		if 1 <= position <= 8:
+			bits[position - 1] = "1"
+	return "".join(bits)
 
 
 def resolve_address_codes(address):
