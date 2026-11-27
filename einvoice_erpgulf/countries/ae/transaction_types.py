@@ -11,6 +11,7 @@ import frappe
 
 DOCTYPE = "E-Invoice Transaction Type"
 TABLE_FIELD = "custom_einvoice_transaction_types"
+CODE_FIELD = "custom_einvoice_transaction_type_code"
 
 # (name as on the Marmin portal, place in the code, what it means)
 TYPES = (
@@ -45,3 +46,13 @@ def selected_positions(doc):
 	if not names:
 		return set()
 	return set(frappe.get_all(DOCTYPE, filters={"name": ["in", list(names)]}, pluck="position"))
+
+
+def set_transaction_type_code(doc, method=None):
+	"""Sales Invoice validate: store the code the e-invoice will carry, so the
+	form shows it (the form also updates it live while types are picked)."""
+	if not doc.meta.has_field(CODE_FIELD):
+		return
+	from einvoice_erpgulf.countries.ae.profile import transaction_type_flags
+
+	doc.set(CODE_FIELD, transaction_type_flags(doc))

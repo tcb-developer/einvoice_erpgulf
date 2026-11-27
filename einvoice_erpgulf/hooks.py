@@ -95,6 +95,7 @@ doctype_js = {
     "Sales Invoice": [
         "public/js/einvoice_common.js",
         "public/js/sales_invoice.js",
+        "public/js/transaction_type_code.js",
         "public/js/tooltip.js",
         "public/js/badge_sales.js",
         
@@ -128,6 +129,7 @@ doc_events = {
         "validate": "einvoice_erpgulf.core.validation.validate_company_provider",
     },
     "Sales Invoice": {
+        "validate": "einvoice_erpgulf.countries.ae.transaction_types.set_transaction_type_code",
         "on_submit": "einvoice_erpgulf.core.submit_sales.generate_and_send_einvoice",
         "before_submit": "einvoice_erpgulf.core.validation.validate_accredited_service_provider",
         "before_cancel": "einvoice_erpgulf.core.validation.block_cancel_if_reported",
