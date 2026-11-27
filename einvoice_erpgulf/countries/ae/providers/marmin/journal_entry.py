@@ -99,14 +99,28 @@ def customer_of(doc):
 
 
 def _tax_accounts(doc):
+    """VAT accounts on the entry: Account Type "Tax", or a ledger directly
+    under a "Tax" group such as "2300 - Duties and Taxes". Finance posts VAT
+    to "Vat Output Tax Account - NCS", whose own Account Type is blank."""
     accounts = {row.account for row in doc.get("accounts") or [] if row.get("account")}
     if not accounts:
         return set()
-    return set(
-        frappe.get_all(
-            "Account", filters={"name": ["in", list(accounts)], "account_type": "Tax"}, pluck="name"
-        )
+    rows = frappe.get_all(
+        "Account",
+        filters={"name": ["in", list(accounts)]},
+        fields=["name", "account_type", "parent_account"],
     )
+    parents = {row.parent_account for row in rows if row.parent_account}
+    tax_groups = set(
+        frappe.get_all(
+            "Account", filters={"name": ["in", list(parents)], "account_type": "Tax"}, pluck="name"
+        )
+    ) if parents else set()
+    return {
+        row.name
+        for row in rows
+        if row.account_type == "Tax" or (not row.account_type and row.parent_account in tax_groups)
+    }
 
 
 def amounts(doc, customer=None):
