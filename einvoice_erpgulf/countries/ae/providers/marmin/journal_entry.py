@@ -16,10 +16,9 @@ note is built as an unsaved Sales Invoice so the Marmin adapter's existing
 credit note code (party, lines, VAT, type code) is reused as is.
 
 The e-invoice is sent in the background after submit. If it fails, the
-"Create E-Invoice" button sends it again. Submit itself is never blocked,
-so Journal Entries created by code (for example from a CN Issue Request)
-still submit; without an item they wait with the E-Invoice Pending ribbon
-until Finance selects one and creates the e-invoice.
+"Create E-Invoice" button sends it again. Select Item and VAT Category are
+read-only after submit (Finance, 27 Nov 2026), so they are chosen before
+submit; the form makes Select Item mandatory.
 """
 
 import json
@@ -170,23 +169,6 @@ def _check_item(doc):
             _("Select Item must be an enabled service item of the item group {0}.").format(ITEM_GROUP),
             title=_("E-Invoice"),
         )
-
-
-def before_update_after_submit(doc, method=None):
-    """Select Item and VAT Category can be set after submit, until the
-    e-invoice exists."""
-    if not (_has_fields(doc) and is_credit_note_entry(doc)):
-        return
-    if has_document_id(doc):
-        before = doc.get_doc_before_save()
-        if before and (
-            before.get("custom_einvoice_item") != doc.get("custom_einvoice_item")
-            or before.get("custom_vat_category") != doc.get("custom_vat_category")
-        ):
-            frappe.throw(_("The e-invoice already exists, so Select Item and VAT Category cannot change."))
-    if not doc.get("custom_vat_category"):
-        doc.custom_vat_category = default_vat_category(doc)
-    _check_item(doc)
 
 
 def on_submit(doc, method=None):

@@ -19,7 +19,8 @@ function einv_je_refresh(frm) {
         const on = Boolean(enabled) && einv_je_is_credit_note(frm);
         frm.toggle_display(EINV_JE_SECTIONS, on);
         frm.toggle_reqd("custom_einvoice_item", on && frm.doc.docstatus === 0);
-        const locked = einvoice_has_document_id(frm.doc) || frm.doc.docstatus === 2;
+        // Read-only once submitted (Finance, 27 Nov 2026).
+        const locked = frm.doc.docstatus !== 0;
         ["custom_einvoice_item", "custom_vat_category"].forEach((f) =>
             frm.set_df_property(f, "read_only", locked ? 1 : 0)
         );

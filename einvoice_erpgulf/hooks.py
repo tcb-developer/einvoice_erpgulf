@@ -135,7 +135,6 @@ doc_events = {
     # Credit Note Journal Entry -> stand-alone credit note e-invoice (UAE, Marmin)
     "Journal Entry": {
         "validate": "einvoice_erpgulf.countries.ae.providers.marmin.journal_entry.validate",
-        "before_update_after_submit": "einvoice_erpgulf.countries.ae.providers.marmin.journal_entry.before_update_after_submit",
         "on_submit": "einvoice_erpgulf.countries.ae.providers.marmin.journal_entry.on_submit",
         "before_cancel": "einvoice_erpgulf.countries.ae.providers.marmin.journal_entry.before_cancel",
     },
